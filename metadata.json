@@ -1,0 +1,6 @@
+{
+  "name": "FFXIV TC RP店排班助手｜ShiftCore",
+  "description": "專為《最終幻想14》（FF14）RP店主設計的排班表工具。支持店員角色管理、時段意願編輯、Excel表格複製粘貼、自動最佳排班算法以及 AI 加速排班意願解析。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
