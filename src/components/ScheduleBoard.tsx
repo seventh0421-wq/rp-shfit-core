@@ -110,9 +110,14 @@ export default function ScheduleBoard({
     toPng(posterRef.current, {
       cacheBust: true,
       backgroundColor: "#FAF9F6",
-      pixelRatio: 3, // 提升至 3 倍像素比 (Retina 高解析度)
+      width: 1260,
+      height: 3702,
+      pixelRatio: 1, // 鎖定像素比為 1，使輸出解析度精確維持在 1260x3702
       style: {
-        transform: "scale(1)",
+        width: "420px",
+        height: "1234px",
+        transform: "scale(3)",
+        transformOrigin: "top left",
       },
     })
       .then((dataUrl) => {
@@ -494,96 +499,99 @@ export default function ScheduleBoard({
             </button>
 
             {/* Poster Element to Capture */}
-            <div className="overflow-hidden rounded-xl border border-[#D8D2C2] bg-white shadow-inner flex justify-center">
+            <div className="overflow-hidden rounded-xl border border-[#D8D2C2] bg-white shadow-inner flex justify-center max-h-[720px] overflow-y-auto w-full">
               <div
                 ref={posterRef}
-                className="pt-6 px-6 pb-14 bg-[#FAF9F6] text-[#4A3D33] space-y-6 font-sans relative"
-                style={{ width: "420px" }}
+                className="pt-6 px-6 pb-14 bg-[#FAF9F6] text-[#4A3D33] font-sans relative flex flex-col justify-between shrink-0"
+                style={{ width: "420px", height: "1234px" }}
               >
                 {/* Decorative borders */}
                 <div className="absolute top-2.5 left-2.5 right-2.5 bottom-2.5 border border-[#8B7355]/30 pointer-events-none rounded-lg"></div>
                 <div className="absolute top-3.5 left-3.5 right-3.5 bottom-3.5 border border-[#8B7355]/10 pointer-events-none rounded-lg"></div>
                 
-                {/* Real Time Overlay on capturing */}
-                <div className="flex justify-between items-center text-[9px] font-mono text-[#A19882] select-none relative z-10 px-1 border-b border-[#D8D2C2]/30 pb-1">
-                  <span>REAL TIME / 現實時間</span>
-                  <span className="font-bold text-[#8B7355]">{realTime || "讀取中..."}</span>
-                </div>
-
-                {/* Header */}
-                <div className="text-center space-y-1 relative pt-1 z-10 select-none">
-                  <div className="inline-block bg-[#8B7355] text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-1 shadow-2xs">
-                    ✦ FFXIV RP ROSTER ✦
+                {/* Content top section wrapper */}
+                <div className="space-y-6 z-10 relative flex-grow flex flex-col justify-start">
+                  {/* Real Time Overlay on capturing */}
+                  <div className="flex justify-between items-center text-[9px] font-mono text-[#A19882] select-none border-b border-[#D8D2C2]/30 pb-1">
+                    <span>REAL TIME / 現實時間</span>
+                    <span className="font-bold text-[#8B7355]">{realTime || "讀取中..."}</span>
                   </div>
-                  <h2 className="text-2xl font-serif font-black tracking-wide text-[#4A3D33] break-words uppercase">
-                    {shopName}
-                  </h2>
-                  <p className="text-xs text-[#8B7355] font-serif font-bold italic">
-                    {selectedWeek === "this_week" ? "~ 本週營業班表 ~" : selectedWeek === "next_week" ? "~ 下週營運預排 ~" : "~ 下下週營運預排 ~"}
-                  </p>
-                  <p className="text-[10px] text-[#A19882] font-mono font-bold tracking-tight">
-                    ({getWeekLabelText(weekOffset)})
-                  </p>
-                  <div className="w-20 h-0.5 bg-[#8B7355] mx-auto mt-2"></div>
-                </div>
 
-                {/* Slots details */}
-                <div className="space-y-4 pt-1 z-10 relative text-left">
-                  {slots.length === 0 ? (
-                    <p className="text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
-                  ) : (
-                    slots.map((slot) => {
-                      // Get allocations in this slot
-                      const slotShifts = schedule.filter((s) => s.slotId === slot.id);
-                      
-                      return (
-                        <div key={slot.id} className="bg-white border border-[#D8D2C2] rounded-xl p-4 space-y-3.5 shadow-2xs">
-                          {/* Slot banner */}
-                          <div className="flex justify-between items-center border-b border-[#D8D2C2]/50 pb-2 select-none">
-                            <span className="text-xs font-serif font-bold text-white bg-[#4A3D33] px-2.5 py-0.5 rounded">
-                              {slot.day} ({getSlotDateLabel(slot.day, weekOffset)})
-                            </span>
-                            <span className="text-xs font-serif font-extrabold text-[#8B7355]">
-                              {slot.time}
-                            </span>
-                          </div>
+                  {/* Header */}
+                  <div className="text-center space-y-1 select-none">
+                    <div className="inline-block bg-[#8B7355] text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-1 shadow-2xs">
+                      ✦ FFXIV RP ROSTER ✦
+                    </div>
+                    <h2 className="text-2xl font-serif font-black tracking-wide text-[#4A3D33] break-words uppercase">
+                      {shopName}
+                    </h2>
+                    <p className="text-xs text-[#8B7355] font-serif font-bold italic">
+                      {selectedWeek === "this_week" ? "~ 本週營業班表 ~" : selectedWeek === "next_week" ? "~ 下週營運預排 ~" : "~ 下下週營運預排 ~"}
+                    </p>
+                    <p className="text-[10px] text-[#A19882] font-mono font-bold tracking-tight">
+                      ({getWeekLabelText(weekOffset)})
+                    </p>
+                    <div className="w-20 h-0.5 bg-[#8B7355] mx-auto mt-2"></div>
+                  </div>
 
-                          {/* Staff and roles list */}
-                          <div className="space-y-1.5">
-                            {slot.rolesRequired.length === 0 ? (
-                              <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
-                            ) : (
-                              slot.rolesRequired.flatMap((req) => {
-                                const list = [];
-                                for (let i = 0; i < req.count; i++) {
-                                  list.push({ roleName: req.roleName, index: i });
-                                }
-                                return list;
-                              }).map(({ roleName, index }, rIdx) => {
-                                const assignedId = getAssignedStaffId(slot.id, roleName);
-                                const currentStaff = staffList.find((st) => st.id === assignedId);
-                                
-                                return (
-                                  <div key={rIdx} className="flex justify-between items-center text-base py-1 border-b border-[#FAF9F6]/50 last:border-0 select-none">
-                                    <span className="text-[#6D5F52] font-serif font-medium">
-                                      • {roleName.split(" / ")[0]}
-                                    </span>
-                                    <span className={`px-2 py-0.5 rounded font-serif font-extrabold text-base ${currentStaff ? "text-[#4A3D33]" : "text-amber-700 bg-amber-50"}`}>
-                                      {currentStaff ? currentStaff.name : "🕒 待定 / 代班中"}
-                                    </span>
-                                  </div>
-                                );
-                              })
-                            )}
+                  {/* Slots details */}
+                  <div className="space-y-4 pt-1 text-left">
+                    {slots.length === 0 ? (
+                      <p className="text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
+                    ) : (
+                      slots.map((slot) => {
+                        // Get allocations in this slot
+                        const slotShifts = schedule.filter((s) => s.slotId === slot.id);
+                        
+                        return (
+                          <div key={slot.id} className="bg-white border border-[#D8D2C2] rounded-xl p-4 space-y-3.5 shadow-2xs">
+                            {/* Slot banner */}
+                            <div className="flex justify-between items-center border-b border-[#D8D2C2]/50 pb-2 select-none">
+                              <span className="text-xs font-serif font-bold text-white bg-[#4A3D33] px-2.5 py-0.5 rounded">
+                                {slot.day} ({getSlotDateLabel(slot.day, weekOffset)})
+                              </span>
+                              <span className="text-xs font-serif font-extrabold text-[#8B7355]">
+                                {slot.time}
+                              </span>
+                            </div>
+
+                            {/* Staff and roles list */}
+                            <div className="space-y-1.5">
+                              {slot.rolesRequired.length === 0 ? (
+                                <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
+                              ) : (
+                                slot.rolesRequired.flatMap((req) => {
+                                  const list = [];
+                                  for (let i = 0; i < req.count; i++) {
+                                    list.push({ roleName: req.roleName, index: i });
+                                  }
+                                  return list;
+                                }).map(({ roleName, index }, rIdx) => {
+                                  const assignedId = getAssignedStaffId(slot.id, roleName);
+                                  const currentStaff = staffList.find((st) => st.id === assignedId);
+                                  
+                                  return (
+                                    <div key={rIdx} className="flex justify-between items-center text-base py-1 border-b border-[#FAF9F6]/50 last:border-0 select-none">
+                                      <span className="text-[#6D5F52] font-serif font-medium">
+                                        • {roleName.split(" / ")[0]}
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded font-serif font-extrabold text-base ${currentStaff ? "text-[#4A3D33]" : "text-amber-700 bg-amber-50"}`}>
+                                        {currentStaff ? currentStaff.name : "🕒 待定 / 代班中"}
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 {/* Footer seal (elevated by higher pb on parent and pb-3 margin-bottom offsets to stay completely clear of borders) */}
-                <div className="text-center pt-3 pb-3 border-t border-[#D8D2C2]/40 z-10 relative select-none space-y-1.5 mb-1">
+                <div className="text-center pt-3 pb-3 border-t border-[#D8D2C2]/40 z-10 relative select-none space-y-1.5 mb-1 shrink-0">
                   <p className="text-base text-[#6D5F52] font-serif font-black leading-none tracking-widest">
                     敬邀光臨入座
                   </p>
