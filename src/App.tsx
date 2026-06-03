@@ -577,6 +577,7 @@ export default function App() {
                   onChangePreference={handleChangePreference}
                   onBatchUpdate={handleBatchUpdateAvailabilities}
                   selectedWeek={selectedWeek}
+                  roles={roles}
                 />
               )}
               {activeTab === "staff" && (

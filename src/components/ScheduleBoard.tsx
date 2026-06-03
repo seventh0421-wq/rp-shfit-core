@@ -165,23 +165,57 @@ export default function ScheduleBoard({
     };
   });
 
-  // Handle manually changing staff in a shift
-  const handleManualAssignment = (slotId: string, roleName: string, staffId: string) => {
-    const nextSchedule = schedule.filter((s) => !(s.slotId === slotId && s.roleName === roleName));
-    if (staffId !== "unassigned") {
-      nextSchedule.push({
-        slotId,
-        roleName,
-        staffId,
-      });
+  // Handle manually changing staff in a shift with roleIndex
+  const handleManualAssignment = (slotId: string, roleName: string, roleIndex: number, staffId: string) => {
+    const otherShifts = schedule.filter((s) => !(s.slotId === slotId && s.roleName === roleName));
+    const currentMatches = schedule.filter((s) => s.slotId === slotId && s.roleName === roleName);
+    
+    const newMatches: ScheduledShift[] = [];
+    const maxIndex = Math.max(currentMatches.length - 1, roleIndex);
+    
+    for (let i = 0; i <= maxIndex; i++) {
+      let existing = currentMatches.find((s) => s.roleIndex === i);
+      if (!existing && currentMatches[i]) {
+        existing = currentMatches[i];
+      }
+      
+      if (i === roleIndex) {
+        if (staffId !== "unassigned") {
+          newMatches.push({
+            slotId,
+            roleName,
+            staffId,
+            roleIndex: i,
+          });
+        }
+      } else if (existing && existing.staffId !== "unassigned") {
+        newMatches.push({
+          slotId,
+          roleName,
+          staffId: existing.staffId,
+          roleIndex: i,
+        });
+      }
     }
-    onUpdateSchedule(nextSchedule);
+    
+    onUpdateSchedule([...otherShifts, ...newMatches]);
   };
 
-  // Look up who is assigned to a slot & role
-  const getAssignedStaffId = (slotId: string, roleName: string): string => {
-    const found = schedule.find((s) => s.slotId === slotId && s.roleName === roleName);
-    return found ? found.staffId : "unassigned";
+  // Look up who is assigned to a slot & role with roleIndex
+  const getAssignedStaffId = (slotId: string, roleName: string, roleIndex?: number): string => {
+    const matches = schedule.filter((s) => s.slotId === slotId && s.roleName === roleName);
+    if (matches.length === 0) return "unassigned";
+    
+    if (roleIndex !== undefined) {
+      const indexMatch = matches.find((s) => s.roleIndex === roleIndex);
+      if (indexMatch) return indexMatch.staffId;
+      
+      if (matches[roleIndex]) {
+        return matches[roleIndex].staffId;
+      }
+    }
+    
+    return matches[0].staffId;
   };
 
   // Generate copyable Discord formatted text
@@ -298,7 +332,7 @@ export default function ScheduleBoard({
                   {/* Shifts Assignments List */}
                   <div className="p-5 divide-y divide-[#D8D2C2]/40 space-y-3 bg-white">
                     {reqs.map(({ roleName, index }) => {
-                      const assignedStaffId = getAssignedStaffId(slot.id, roleName);
+                      const assignedStaffId = getAssignedStaffId(slot.id, roleName, index);
                       const currentStaff = staffList.find((s) => s.id === assignedStaffId);
 
                       // Get all qualified staff who can do this role for the dropdown
@@ -324,7 +358,7 @@ export default function ScheduleBoard({
                             <select
                               value={assignedStaffId}
                               onChange={(e) =>
-                                handleManualAssignment(slot.id, roleName, e.target.value)
+                                handleManualAssignment(slot.id, roleName, index, e.target.value)
                               }
                               className={`w-full sm:w-48 px-2.5 py-1.5 rounded-lg text-2xs border font-semibold bg-[#FAF9F6] border-[#D8D2C2] text-[#4A3D33] focus:outline-none focus:ring-1 focus:ring-[#8B7355] transition cursor-pointer`}
                             >
@@ -567,7 +601,7 @@ export default function ScheduleBoard({
                                   }
                                   return list;
                                 }).map(({ roleName, index }, rIdx) => {
-                                  const assignedId = getAssignedStaffId(slot.id, roleName);
+                                  const assignedId = getAssignedStaffId(slot.id, roleName, index);
                                   const currentStaff = staffList.find((st) => st.id === assignedId);
                                   
                                   return (

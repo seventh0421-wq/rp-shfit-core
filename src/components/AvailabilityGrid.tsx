@@ -10,6 +10,7 @@ interface AvailabilityGridProps {
   onChangePreference: (staffId: string, slotId: string, status: AvailabilityStatus) => void;
   onBatchUpdate: (updatedAvail: StaffAvailability[], updatedStaff?: Staff[]) => void;
   selectedWeek: string;
+  roles: string[];
 }
 
 export default function AvailabilityGrid({
@@ -19,6 +20,7 @@ export default function AvailabilityGrid({
   onChangePreference,
   onBatchUpdate,
   selectedWeek,
+  roles,
 }: AvailabilityGridProps) {
   const [tsvInput, setTsvInput] = useState("");
   const [tsvError, setTsvError] = useState<string | null>(null);
@@ -172,16 +174,43 @@ export default function AvailabilityGrid({
         body: JSON.stringify({
           rawText: aiInput,
           slots: slots,
-          roles: staffList.flatMap((s) => s.roles).filter((v, i, a) => a.indexOf(v) === i),
+          roles: roles && roles.length > 0 ? roles : staffList.flatMap((s) => s.roles).filter((v, i, a) => a.indexOf(v) === i),
         }),
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "AI 解析請求失敗。");
+        let errorMessage = "AI 解析請求失敗。";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errorMessage = errData.error || errorMessage;
+          } else {
+            const textHTML = await response.text();
+            // If it is a 404 page or generic HTML error page, extract a snippet
+            if (textHTML.includes("<title>")) {
+              const matchedTitle = textHTML.match(/<title>([\s\S]*?)<\/title>/i);
+              if (matchedTitle && matchedTitle[1]) {
+                errorMessage = `伺服器回應錯誤: ${matchedTitle[1].trim()}`;
+              } else {
+                errorMessage = `伺服器回應了 HTML 錯誤頁面 (狀態碼: ${response.status})`;
+              }
+            } else {
+              errorMessage = textHTML.slice(0, 100) || `HTTP 錯誤碼: ${response.status}`;
+            }
+          }
+        } catch (_) {
+          errorMessage = `連線或要求失敗 (狀態碼: ${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error("無法將伺服器回應解析為 JSON 格式。請確認後端服務是否正常運作。");
+      }
       if (data.parsedStaff && data.parsedStaff.length > 0) {
         setParsedPreview(data.parsedStaff);
       } else {
@@ -812,7 +841,7 @@ export default function AvailabilityGrid({
 
           <button
             onClick={handleAiParse}
-            disabled={aiLoading || slots.length === 0 || staffList.length === 0}
+            disabled={aiLoading || slots.length === 0}
             className="w-full py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#4A3D33] hover:bg-[#3D322A] transition flex justify-center items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm"
           >
             {aiLoading ? (

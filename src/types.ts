@@ -31,6 +31,7 @@ export interface ScheduledShift {
   slotId: string;
   roleName: string;
   staffId: string; // The staff assigned to this role in this slot
+  roleIndex?: number; // 0-based index to handle multiple counts of the same role
 }
 
 // Predefined default roles in Final Fantasy XIV roleplay clubs

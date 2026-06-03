@@ -69,7 +69,7 @@ export function autoSchedule(
     // Track which staff are already assigned to this slot (cannot do double duty)
     const assignedInThisSlot = new Set<string>();
 
-    reqs.forEach(({ roleName }) => {
+    reqs.forEach(({ roleName, index }) => {
       // Find eligible staff
       const candidates = staffList.filter((staff) => {
         // Must perform this role
@@ -115,6 +115,7 @@ export function autoSchedule(
           slotId: slot.id,
           roleName,
           staffId: selected.id,
+          roleIndex: index,
         });
         staffShiftCounts[selected.id]++;
         assignedInThisSlot.add(selected.id);
