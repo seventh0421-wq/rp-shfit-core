@@ -261,7 +261,7 @@ export default function App() {
     });
   };
 
-  // Bulk overwrite from Excel or AI Parser
+  // Bulk overwrite from Excel or Clipboard Importer
   const handleBatchUpdateAvailabilities = (updatedAvails: StaffAvailability[], updatedStaffList?: Staff[]) => {
     setAvailabilities(updatedAvails);
     if (updatedStaffList) {
@@ -482,7 +482,7 @@ export default function App() {
           {(
             [
               { id: "schedule", label: "綜合排班班表", icon: CalendarDays },
-              { id: "availability", label: "夥伴排班意願 & AI 導入", icon: ClipboardList },
+              { id: "availability", label: "夥伴排班意願 & 試算表導入", icon: ClipboardList },
               { id: "staff", label: "店員夥伴管理", icon: Users },
               { id: "slots", label: "營業時段 & 編制設定", icon: Clock }
             ] as const
@@ -755,7 +755,7 @@ export default function App() {
                     <div className="flex items-center gap-2 border-b border-[#D8D2C2]/50 pb-2">
                       <span className="bg-[#8B7355] text-white rounded px-2 py-0.5 text-3xs font-bold font-mono">STEP 3</span>
                       <h4 className="text-sm font-serif font-bold text-[#4A3D33] dark:text-[#E8D8C8]">
-                        夥伴排班意願 & 創新的 AI 純文字導入
+                        夥伴排班意願 & 試算表整批複製貼上
                       </h4>
                     </div>
                     <div className="space-y-3">
@@ -764,17 +764,16 @@ export default function App() {
                         <div>
                           <strong className="text-[#4A3D33] dark:text-[#E8D8C8] block font-bold mb-0.5">互動意願棋盤手動填寫</strong>
                           <p className="text-[#6D5F52] dark:text-[#C5B5A5] leading-relaxed">
-                            在「夥伴排班意願 & AI 導入」中，可以以極佳的觸控與點擊手動為每位夥伴填寫意願，以這三種狀態循環切換：🟢 意願極佳、🟡 備用/可能、🔴 不行/不利。
+                            在「夥伴排班意願 & 試算表導入」中，可以以極佳的觸控與點擊手動為每位夥伴填寫意願，以這三種狀態循環切換：🟢 意願極佳、🟡 備用/可能、🔴 不行/不利。
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-2.5 items-start bg-[#FAF9F6] dark:bg-[#25201A] p-3 rounded-xl border border-[#D8D2C2]/50">
                         <div className="w-5 h-5 rounded-full bg-[#8B7355]/20 flex items-center justify-center text-[#8B7355] font-serif font-bold scale-90 shrink-0 mt-0.5">➋</div>
                         <div>
-                          <strong className="text-emerald-600 dark:text-emerald-400 block font-bold mb-0.5">✦ AI 意願一鍵整批導入 (店長殺手級救星！)</strong>
+                          <strong className="text-[#4A3D33] dark:text-[#E8D8C8] block font-bold mb-0.5">試算表整批複製貼上</strong>
                           <p className="text-[#6D5F52] dark:text-[#C5B5A5] leading-relaxed">
-                            夥伴通常在 Discord 或 LINE 群組丟下一句排班文字（例如：「桑克雷德：六可、日不可、五可能」），傳統店長只能人工緩慢對照點选。
-                            現在您只需<strong>一併複製大家丟出來的所有發言</strong>，貼入<strong>【AI 一鍵解析助理】</strong>输入框中，AI 演算法不論其排版混亂，均會自適應一秒解析，快速完成整批意願儲存！
+                            店長可以直接自 Excel 或 Google 試算表整批複製意願資料 (Ctrl+C)，並在下方【試算表複製貼上】區塊直接貼上 (Ctrl+V) 或者匯入 TSV 檔案，即可快速對結資料。
                           </p>
                         </div>
                       </div>
