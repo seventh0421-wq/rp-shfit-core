@@ -15,7 +15,7 @@ function getAiClient(): GoogleGenAI {
   if (!aiClient) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
-      throw new Error("GEMINI_API_KEY is not defined. Please add it to your secrets or environment variables.");
+      throw new Error("偵測到未設定 GEMINI_API_KEY 金鑰。請於 Google AI Studio 介面的左下角或右上角【Settings】(或 Secrets/環境變數) 中新增 `GEMINI_API_KEY`，或者在專案中建立 `.env` 檔案並填入 `GEMINI_API_KEY=您的金鑰`。");
     }
     aiClient = new GoogleGenAI({
       apiKey: key,
@@ -32,6 +32,14 @@ function getAiClient(): GoogleGenAI {
 async function startServer() {
   const app = express();
   app.use(express.json());
+
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({
+      status: "ok",
+      hasGeminiKey: !!process.env.GEMINI_API_KEY,
+    });
+  });
 
   // API router for availability parsing
   app.post("/api/parse-availability", async (req, res) => {

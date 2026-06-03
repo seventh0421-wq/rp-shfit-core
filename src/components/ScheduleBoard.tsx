@@ -80,6 +80,7 @@ export default function ScheduleBoard({
   }, [shopName]);
 
   const [realTime, setRealTime] = useState("");
+  const [selectedPosterDay, setSelectedPosterDay] = useState<string>("all");
   
   const weekOffset = selectedWeek === "this_week" ? 0 : selectedWeek === "next_week" ? 1 : selectedWeek === "two_weeks_after" ? 2 : 0;
   
@@ -107,22 +108,27 @@ export default function ScheduleBoard({
     if (!posterRef.current) return;
     setIsGeneratingImage(true);
 
+    const isAll = selectedPosterDay === "all";
+    const targetHeight = isAll ? 1234 : 760;
+    const targetWidth = 420;
+
     toPng(posterRef.current, {
       cacheBust: true,
       backgroundColor: "#FAF9F6",
-      width: 1260,
-      height: 3702,
-      pixelRatio: 1, // 鎖定像素比為 1，使輸出解析度精確維持在 1260x3702
+      width: targetWidth * 3,
+      height: targetHeight * 3,
+      pixelRatio: 1, // 鎖定像素比為 1，使輸出解析度精確維持在 1260 x (3702/2280)
       style: {
-        width: "420px",
-        height: "1234px",
+        width: `${targetWidth}px`,
+        height: `${targetHeight}px`,
         transform: "scale(3)",
         transformOrigin: "top left",
       },
     })
       .then((dataUrl) => {
         const link = document.createElement("a");
-        link.download = `${shopName}_視覺化排班大字海報.png`;
+        const suffix = isAll ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
+        link.download = `${shopName}_${suffix}.png`;
         link.href = dataUrl;
         link.click();
         setIsGeneratingImage(false);
@@ -270,6 +276,14 @@ export default function ScheduleBoard({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const uniqueDaysInSlots = Array.from(new Set(slots.map((s) => s.day))).sort((a, b) => {
+    return getDayIndex(a) - getDayIndex(b);
+  });
+
+  const displayedSlots = selectedPosterDay === "all"
+    ? slots
+    : slots.filter((slot) => slot.day === selectedPosterDay);
+
   return (
     <div className="space-y-6">
       {/* Prime Action Card */}
@@ -305,11 +319,21 @@ export default function ScheduleBoard({
             {slots.map((slot) => {
               // Get required roles
               const reqs = slot.rolesRequired.flatMap((req) => {
-                const arr = [];
-                for (let i = 0; i < req.count; i++) {
-                   arr.push({ roleName: req.roleName, index: i });
+                if (req.isUnlimited) {
+                  const arr = [];
+                  const matches = schedule.filter((s) => s.slotId === slot.id && s.roleName === req.roleName);
+                  matches.forEach((m, idx) => {
+                    arr.push({ roleName: req.roleName, index: m.roleIndex ?? idx, isUnlimited: true });
+                  });
+                  arr.push({ roleName: req.roleName, index: matches.length, isUnlimited: true });
+                  return arr;
+                } else {
+                  const arr = [];
+                  for (let i = 0; i < req.count; i++) {
+                     arr.push({ roleName: req.roleName, index: i });
+                  }
+                  return arr;
                 }
-                return arr;
               });
 
               return (
@@ -331,7 +355,7 @@ export default function ScheduleBoard({
 
                   {/* Shifts Assignments List */}
                   <div className="p-5 divide-y divide-[#D8D2C2]/40 space-y-3 bg-white">
-                    {reqs.map(({ roleName, index }) => {
+                    {reqs.map(({ roleName, index, isUnlimited }) => {
                       const assignedStaffId = getAssignedStaffId(slot.id, roleName, index);
                       const currentStaff = staffList.find((s) => s.id === assignedStaffId);
 
@@ -348,9 +372,16 @@ export default function ScheduleBoard({
                             <span className="font-bold text-[#4A3D33] leading-none">
                               {roleName.split(" / ")[0]} {/* simple name */}
                             </span>
-                            <span className="text-[10px] text-[#A19882] font-semibold mt-1">
-                              職務號 #{index + 1}
-                            </span>
+                            {isUnlimited ? (
+                              <span className="text-[10px] text-emerald-600 font-extrabold mt-1 flex items-center gap-1">
+                                <span>無上限屬性</span>
+                                <span>(第 {index + 1} 員)</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-[#A19882] font-semibold mt-1">
+                                職務號 #{index + 1}
+                              </span>
+                            )}
                           </div>
 
                           {/* Manual Selector Dropdown */}
@@ -523,13 +554,53 @@ export default function ScheduleBoard({
               將下方精美風格的海報圖卡下載存入您的裝置。本圖卡自動去除控制按鈕，非常適合張貼於 Discord、遊戲社群、或店鋪公告！
             </p>
 
+            {/* Day Selector for Day-by-Day (分天下載) Poster Layout */}
+            {uniqueDaysInSlots.length > 1 && (
+              <div className="space-y-2 bg-[#E7E0D3]/30 p-2.5 rounded-xl border border-[#D8D2C2]/40">
+                <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
+                  海報匯出規格設定：
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPosterDay("all");
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
+                      selectedPosterDay === "all"
+                        ? "bg-[#8B7355] text-white shadow-xs"
+                        : "bg-white/60 text-[#6D5F52] hover:bg-white"
+                    }`}
+                  >
+                    全部 (全週排班海報)
+                  </button>
+                  {uniqueDaysInSlots.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPosterDay(d);
+                      }}
+                      className={`py-1.5 px-3.5 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
+                        selectedPosterDay === d
+                          ? "bg-[#8B7355] text-white shadow-xs"
+                          : "bg-white/60 text-[#6D5F52] hover:bg-white"
+                      }`}
+                    >
+                      僅 {d} 海報
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={handleExportImage}
               disabled={schedule.length === 0 || isGeneratingImage}
               className="w-full py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#8B7355] hover:bg-[#705D45] transition flex justify-center items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
             >
               <Download className="w-4 h-4 text-white" />
-              {isGeneratingImage ? "海報圖片產生中..." : "立刻下載排班海報 (PNG) 📸"}
+              {isGeneratingImage ? "海報圖片產生中..." : selectedPosterDay === "all" ? "立刻下載全週排班海報 (PNG) 📸" : `立刻下載 [${selectedPosterDay}] 單日海報 (PNG) 📸`}
             </button>
 
             {/* Poster Element to Capture */}
@@ -537,7 +608,10 @@ export default function ScheduleBoard({
               <div
                 ref={posterRef}
                 className="pt-6 px-6 pb-14 bg-[#FAF9F6] text-[#4A3D33] font-sans relative flex flex-col justify-between shrink-0"
-                style={{ width: "420px", height: "1234px" }}
+                style={{
+                  width: "420px",
+                  height: selectedPosterDay === "all" ? "1234px" : "760px",
+                }}
               >
                 {/* Decorative borders */}
                 <div className="absolute top-2.5 left-2.5 right-2.5 bottom-2.5 border border-[#8B7355]/30 pointer-events-none rounded-lg"></div>
@@ -560,20 +634,28 @@ export default function ScheduleBoard({
                       {shopName}
                     </h2>
                     <p className="text-xs text-[#8B7355] font-serif font-bold italic">
-                      {selectedWeek === "this_week" ? "~ 本週營業班表 ~" : selectedWeek === "next_week" ? "~ 下週營運預排 ~" : "~ 下下週營運預排 ~"}
+                      {selectedPosterDay === "all" ? (
+                        selectedWeek === "this_week" ? "~ 本週營業班表 ~" : selectedWeek === "next_week" ? "~ 下週營運預排 ~" : "~ 下下週營運預排 ~"
+                      ) : (
+                        `~ ${selectedPosterDay} 營業班表 ~`
+                      )}
                     </p>
                     <p className="text-[10px] text-[#A19882] font-mono font-bold tracking-tight">
-                      ({getWeekLabelText(weekOffset)})
+                      {selectedPosterDay === "all" ? (
+                        `(${getWeekLabelText(weekOffset)})`
+                      ) : (
+                        `(${getSlotDateLabel(selectedPosterDay, weekOffset)})`
+                      )}
                     </p>
                     <div className="w-20 h-0.5 bg-[#8B7355] mx-auto mt-2"></div>
                   </div>
 
                   {/* Slots details */}
                   <div className="space-y-4 pt-1 text-left">
-                    {slots.length === 0 ? (
+                    {displayedSlots.length === 0 ? (
                       <p className="text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
                     ) : (
-                      slots.map((slot) => {
+                      displayedSlots.map((slot) => {
                         // Get allocations in this slot
                         const slotShifts = schedule.filter((s) => s.slotId === slot.id);
                         
@@ -595,11 +677,17 @@ export default function ScheduleBoard({
                                 <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
                               ) : (
                                 slot.rolesRequired.flatMap((req) => {
-                                  const list = [];
-                                  for (let i = 0; i < req.count; i++) {
-                                    list.push({ roleName: req.roleName, index: i });
+                                  if (req.isUnlimited) {
+                                    const matches = schedule.filter((m) => m.slotId === slot.id && m.roleName === req.roleName);
+                                    if (matches.length === 0) return [];
+                                    return matches.map((m, idx) => ({ roleName: req.roleName, index: m.roleIndex ?? idx }));
+                                  } else {
+                                    const list = [];
+                                    for (let i = 0; i < req.count; i++) {
+                                      list.push({ roleName: req.roleName, index: i });
+                                    }
+                                    return list;
                                   }
-                                  return list;
                                 }).map(({ roleName, index }, rIdx) => {
                                   const assignedId = getAssignedStaffId(slot.id, roleName, index);
                                   const currentStaff = staffList.find((st) => st.id === assignedId);

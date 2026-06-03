@@ -10,6 +10,7 @@ export interface Staff {
 export interface SlotRoleRequirement {
   roleName: string;
   count: number;
+  isUnlimited?: boolean;
 }
 
 export interface ShiftSlot {

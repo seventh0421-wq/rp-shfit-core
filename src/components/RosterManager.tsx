@@ -125,9 +125,26 @@ export default function RosterManager({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#8B7355] mb-2 uppercase tracking-wider">
-                可任職務職能（可複選）
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-[#8B7355] uppercase tracking-wider">
+                  可任職務職能（可複選）
+                </label>
+                {roles.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedRoles.length === roles.length) {
+                        setSelectedRoles([]);
+                      } else {
+                        setSelectedRoles([...roles]);
+                      }
+                    }}
+                    className="text-3xs text-[#8B7355] hover:text-[#4A3D33] font-extrabold border border-[#D8D2C2] rounded px-1.5 py-0.5 bg-white shadow-2xs cursor-pointer select-none transition active:scale-95"
+                  >
+                    {selectedRoles.length === roles.length ? "取消全選" : "全選"}
+                  </button>
+                )}
+              </div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {roles.length === 0 ? (
                   <p className="text-2xs text-[#A19882] italic py-2">目前沒有設定任何職務名稱，請先新增職務名稱。</p>

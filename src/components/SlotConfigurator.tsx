@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ShiftSlot, DAYS_OF_WEEK } from "../types";
-import { CalendarClock, Plus, Minus, Trash2, ShieldQuestion } from "lucide-react";
+import { CalendarClock, Plus, Minus, Trash2, ShieldQuestion, Edit2 } from "lucide-react";
 
 interface SlotConfiguratorProps {
   slots: ShiftSlot[];
@@ -20,8 +20,12 @@ export default function SlotConfigurator({
   const [day, setDay] = useState("週六");
   const [time, setTime] = useState("21:00 - 23:00");
   
-  // Track counts for each FFXIV role in the slot we are adding
+  // Track counts for each FFXIV role in the slot we are adding or editing
   const [roleCounts, setRoleCounts] = useState<Record<string, number>>({});
+  // Track if a role is unlimited
+  const [roleUnlimited, setRoleUnlimited] = useState<Record<string, boolean>>({});
+  // Track whether we are editing an existing slot
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
   React.useEffect(() => {
     setRoleCounts((prev) => {
@@ -39,6 +43,21 @@ export default function SlotConfigurator({
       });
       return next;
     });
+
+    setRoleUnlimited((prev) => {
+      const next = { ...prev };
+      roles.forEach((r) => {
+        if (next[r] === undefined) {
+          next[r] = false;
+        }
+      });
+      Object.keys(next).forEach((key) => {
+        if (!roles.includes(key)) {
+          delete next[key];
+        }
+      });
+      return next;
+    });
   }, [roles]);
 
   const handleRoleCountChange = (role: string, change: number) => {
@@ -49,23 +68,89 @@ export default function SlotConfigurator({
     });
   };
 
+  const handleUnlimitedToggle = (role: string, checked: boolean) => {
+    setRoleUnlimited((prev) => ({ ...prev, [role]: checked }));
+    if (checked) {
+      setRoleCounts((prev) => ({ ...prev, [role]: 1 }));
+    }
+  };
+
+  const startEdit = (slot: ShiftSlot) => {
+    setEditingSlotId(slot.id);
+    setDay(slot.day);
+    setTime(slot.time);
+
+    const counts: Record<string, number> = {};
+    const unlimited: Record<string, boolean> = {};
+
+    // Initial base reset
+    roles.forEach((r) => {
+      counts[r] = 0;
+      unlimited[r] = false;
+    });
+
+    slot.rolesRequired.forEach((req) => {
+      counts[req.roleName] = req.count;
+      unlimited[req.roleName] = !!req.isUnlimited;
+    });
+
+    setRoleCounts(counts);
+    setRoleUnlimited(unlimited);
+  };
+
+  const cancelEdit = () => {
+    setEditingSlotId(null);
+    setTime("21:00 - 23:00");
+    const counts: Record<string, number> = {};
+    const unlimited: Record<string, boolean> = {};
+    roles.forEach((r) => {
+      counts[r] = r.startsWith("Host") || r.includes("陪聊") ? 2 : r.startsWith("Manager") || r.includes("店長") || r.startsWith("Bartender") || r.includes("調酒") ? 1 : 0;
+      unlimited[r] = false;
+    });
+    setRoleCounts(counts);
+    setRoleUnlimited(unlimited);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!time.trim()) return;
 
     // Build the required roles list
     const rolesRequired = Object.entries(roleCounts)
-      .filter(([_, count]) => (count as number) > 0)
-      .map(([roleName, count]) => ({ roleName, count: count as number }));
+      .filter(([roleName, count]) => (count as number) > 0 || !!roleUnlimited[roleName])
+      .map(([roleName, count]) => ({
+        roleName,
+        count: roleUnlimited[roleName] ? 0 : (count as number),
+        isUnlimited: !!roleUnlimited[roleName]
+      }));
 
-    onAddSlot({
-      day,
-      time: time.trim(),
-      rolesRequired,
-    });
+    if (editingSlotId) {
+      onUpdateSlot({
+        id: editingSlotId,
+        day,
+        time: time.trim(),
+        rolesRequired,
+      });
+      setEditingSlotId(null);
+    } else {
+      onAddSlot({
+        day,
+        time: time.trim(),
+        rolesRequired,
+      });
+    }
 
     // Reset some defaults
     setTime("21:00 - 23:00");
+    setEditingSlotId(null);
+    const initialCounts: Record<string, number> = {};
+    const initialUnlimited: Record<string, boolean> = {};
+    roles.forEach((r) => {
+      initialCounts[r] = r.startsWith("Host") || r.includes("陪聊") ? 2 : r.startsWith("Manager") || r.includes("店長") || r.startsWith("Bartender") || r.includes("調酒") ? 1 : 0;
+      initialUnlimited[r] = false;
+    });
+    setRoleCounts(initialCounts);
+    setRoleUnlimited(initialUnlimited);
   };
 
   return (
@@ -82,7 +167,15 @@ export default function SlotConfigurator({
         {/* Form Panel */}
         <div className="lg:col-span-1 bg-[#FAF9F6] p-5 rounded-2xl border border-[#D8D2C2] shadow-sm space-y-4">
           <h3 className="text-sm font-serif font-bold text-[#4A3D33] flex items-center gap-2">
-            <CalendarClock className="w-5 h-5 text-[#8B7355]" /> 新增開業時段與班制
+            {editingSlotId ? (
+              <>
+                <Edit2 className="w-5 h-5 text-[#8B7355]" /> 編輯開業時段與班制
+              </>
+            ) : (
+              <>
+                <CalendarClock className="w-5 h-5 text-[#8B7355]" /> 新增開業時段與班制
+              </>
+            )}
           </h3>
 
           <form onSubmit={handleSubmit} className="space-y-4 font-sans">
@@ -125,35 +218,48 @@ export default function SlotConfigurator({
               <label className="block text-3xs font-bold text-[#8B7355] mb-3 uppercase tracking-widest">
                 設定此時段之所需配編人數
               </label>
-              <div className="space-y-2.5 bg-white p-3 rounded-xl border border-[#D8D2C2]">
+              <div className="space-y-2.5 bg-white p-3 rounded-xl border border-[#D8D2C2] max-h-64 overflow-y-auto">
                 {roles.length === 0 ? (
                   <p className="text-2xs text-[#A19882] italic py-2 text-center">目前沒有設定任何職務。請先至「店員管理」新增自訂職務！</p>
                 ) : (
                   roles.map((role) => {
                     const count = roleCounts[role] || 0;
+                    const isUnlimited = !!roleUnlimited[role];
                     return (
-                      <div key={role} className="flex items-center justify-between text-2xs font-semibold animate-fadeIn">
-                        <span className="text-[#4A3D33]">
+                      <div key={role} className="flex items-center justify-between text-2xs font-semibold py-1.5 border-b border-[#D8D2C2]/20 last:border-0 animate-fadeIn">
+                        <span className="text-[#4A3D33] max-w-28 truncate">
                           {role.split(" / ")[0]}
                         </span>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleRoleCountChange(role, -1)}
-                            className="w-6 h-6 rounded bg-[#E7E0D3] hover:bg-[#D8D2C2] flex items-center justify-center text-[#4A3D33] transition cursor-pointer"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className={`w-6 text-center font-bold ${count > 0 ? "text-[#8B7355]" : "text-[#A19882]"}`}>
-                            {count}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRoleCountChange(role, 1)}
-                            className="w-6 h-6 rounded bg-[#E7E0D3] hover:bg-[#D8D2C2] flex items-center justify-center text-[#4A3D33] transition cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
+                          <label className="flex items-center gap-1 cursor-pointer text-3xs text-[#8B7355] select-none hover:text-[#4A3D33]">
+                            <input
+                              type="checkbox"
+                              checked={isUnlimited}
+                              onChange={(e) => handleUnlimitedToggle(role, e.target.checked)}
+                              className="accent-[#8B7355] cursor-pointer"
+                            />
+                            <span className="font-bold">無上限</span>
+                          </label>
+
+                          <div className={`flex items-center gap-1.5 ${isUnlimited ? "opacity-30 pointer-events-none" : ""}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleRoleCountChange(role, -1)}
+                              className="w-5.5 h-5.5 rounded bg-[#E7E0D3] hover:bg-[#D8D2C2] flex items-center justify-center text-[#4A3D33] transition cursor-pointer"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className={`w-5 text-center font-bold ${count > 0 ? "text-[#8B7355]" : "text-[#A19882]"}`}>
+                              {count}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRoleCountChange(role, 1)}
+                              className="w-5.5 h-5.5 rounded bg-[#E7E0D3] hover:bg-[#D8D2C2] flex items-center justify-center text-[#4A3D33] transition cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -162,13 +268,24 @@ export default function SlotConfigurator({
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={Object.values(roleCounts).every((val) => val === 0)}
-              className="w-full py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#8B7355] hover:bg-[#705D45] transition disabled:opacity-40 flex justify-center items-center gap-1 cursor-pointer shadow-sm"
-            >
-              <Plus className="w-4 h-4 text-white" /> 儲存並建檔此對應時段
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={!editingSlotId && Object.entries(roleCounts).every(([r, val]) => val === 0 && !roleUnlimited[r])}
+                className="flex-1 py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#8B7355] hover:bg-[#705D45] transition disabled:opacity-40 flex justify-center items-center gap-1 cursor-pointer shadow-sm animate-fadeIn"
+              >
+                {editingSlotId ? "確認修改開業時段" : "儲存並建檔此對應時段"}
+              </button>
+              {editingSlotId && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="py-2.5 px-3 text-xs font-bold rounded-lg border border-[#D8D2C2] text-[#6D5F52] bg-white hover:bg-[#FAF9F6] transition cursor-pointer"
+                >
+                  取消
+                </button>
+              )}
+            </div>
           </form>
         </div>
 
@@ -186,11 +303,15 @@ export default function SlotConfigurator({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {slots.map((slot) => {
-                const totalPersonnel = slot.rolesRequired.reduce((sum, item) => sum + item.count, 0);
+                const totalPersonnel = slot.rolesRequired.reduce((sum, item) => sum + (item.isUnlimited ? 0 : item.count), 0);
+                const hasUnlimited = slot.rolesRequired.some(item => item.isUnlimited);
+                
                 return (
                   <div
                     key={slot.id}
-                    className="bg-[#FAF9F6] p-4 rounded-xl border border-[#D8D2C2] shadow-sm flex flex-col justify-between"
+                    className={`bg-[#FAF9F6] p-4 rounded-xl border shadow-sm flex flex-col justify-between transition-all ${
+                      editingSlotId === slot.id ? "ring-2 ring-[#8B7355] border-transparent" : "border-[#D8D2C2]"
+                    }`}
                   >
                     <div>
                       {/* Slot Header */}
@@ -203,13 +324,22 @@ export default function SlotConfigurator({
                             {slot.time}
                           </span>
                         </div>
-                        <button
-                          onClick={() => onDeleteSlot(slot.id)}
-                          className="p-1.5 rounded hover:bg-rose-50 text-[#A19882] hover:text-rose-600 transition cursor-pointer"
-                          title="刪除此開業時段"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => startEdit(slot)}
+                            className="p-1 px-2 rounded hover:bg-[#E7E0D3] text-[#6D5F52] hover:text-[#4A3D33] transition cursor-pointer"
+                            title="修改此開業時段與編制"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteSlot(slot.id)}
+                            className="p-1 px-2 rounded hover:bg-rose-50 text-[#A19882] hover:text-rose-600 transition cursor-pointer"
+                            title="刪除此開業時段"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Required Roles and Counts */}
@@ -224,9 +354,15 @@ export default function SlotConfigurator({
                               className="px-2 py-1 rounded text-3xs font-bold bg-white border border-[#D8D2C2] text-[#6D5F52] flex items-center gap-1 shadow-2xs"
                             >
                               <span>{req.roleName.split(" / ")[0]}</span>
-                              <span className="bg-[#8B7355] text-white font-bold w-4 h-4 rounded-full flex items-center justify-center text-[9px] scale-90">
-                                {req.count}
-                              </span>
+                              {req.isUnlimited ? (
+                                <span className="bg-emerald-600 text-white font-black px-1.5 rounded-full text-[8px] scale-90">
+                                  無上限
+                                </span>
+                              ) : (
+                                <span className="bg-[#8B7355] text-white font-bold w-4 h-4 rounded-full flex items-center justify-center text-[9px] scale-90">
+                                  {req.count}
+                                </span>
+                              )}
                             </span>
                           ))}
                         </div>
@@ -234,7 +370,7 @@ export default function SlotConfigurator({
                     </div>
 
                     <div className="pt-4 flex items-center justify-between text-3xs text-[#A19882] font-semibold">
-                      <span>需求總人數: <strong className="text-[#8B7355] font-bold">{totalPersonnel} 名</strong></span>
+                      <span>需求編制人數: <strong className="text-[#8B7355] font-bold">{totalPersonnel}{hasUnlimited ? "+α" : ""} 名</strong></span>
                     </div>
                   </div>
                 );
