@@ -24,10 +24,6 @@ export default function AvailabilityGrid({
 }: AvailabilityGridProps) {
   const [tsvInput, setTsvInput] = useState("");
   const [tsvError, setTsvError] = useState<string | null>(null);
-  const [aiInput, setAiInput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [parsedPreview, setParsedPreview] = useState<any[] | null>(null);
 
   // File upload & processing states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,143 +151,6 @@ export default function AvailabilityGrid({
     } catch (e) {
       setTsvError("解析失敗，請確認是否為 Excel 複製出來的表格格式。");
     }
-  };
-
-  // AI Parser using Server API
-  const handleAiParse = async () => {
-    setAiError(null);
-    setParsedPreview(null);
-    if (!aiInput.trim()) {
-      setAiError("請輸入店員的意願內容或 Discord 聊天的複製片段。");
-      return;
-    }
-
-    setAiLoading(true);
-    try {
-      const response = await fetch("/api/parse-availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawText: aiInput,
-          slots: slots,
-          roles: roles && roles.length > 0 ? roles : staffList.flatMap((s) => s.roles).filter((v, i, a) => a.indexOf(v) === i),
-        }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = "AI 解析請求失敗。";
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errData = await response.json();
-            errorMessage = errData.error || errorMessage;
-          } else {
-            const textHTML = await response.text();
-            // If it is a 404 page or generic HTML error page, extract a snippet
-            if (textHTML.includes("<title>")) {
-              const matchedTitle = textHTML.match(/<title>([\s\S]*?)<\/title>/i);
-              if (matchedTitle && matchedTitle[1]) {
-                errorMessage = `伺服器回應錯誤: ${matchedTitle[1].trim()}`;
-              } else {
-                errorMessage = `伺服器回應了 HTML 錯誤頁面 (狀態碼: ${response.status})`;
-              }
-            } else {
-              errorMessage = textHTML.slice(0, 100) || `HTTP 錯誤碼: ${response.status}`;
-            }
-          }
-        } catch (_) {
-          errorMessage = `連線或要求失敗 (狀態碼: ${response.status})`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        throw new Error("無法將伺服器回應解析為 JSON 格式。請確認後端服務是否正常運作。");
-      }
-      if (data.parsedStaff && data.parsedStaff.length > 0) {
-        setParsedPreview(data.parsedStaff);
-      } else {
-        setAiError("AI 無法在段落中辨識出任何店員，請換個語音或對話區段。");
-      }
-    } catch (e: any) {
-      setAiError(e.message || "連線或解析時發生錯誤。");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const applyAiParsedResult = () => {
-    if (!parsedPreview) return;
-
-    // We will build:
-    // 1. Updated Staff List (if AI returned staff that already exist, we might check/add roles. Or add new staff if they don't exist yet!)
-    const updatedStaffList: Staff[] = [...staffList];
-    const updatedAvailabilities: StaffAvailability[] = [...availabilities];
-
-    parsedPreview.forEach((parsed: any) => {
-      // Look for staff or create new one!
-      let matchedStaff = updatedStaffList.find(
-        (st) => st.name.toLowerCase().trim() === parsed.name.toLowerCase().trim()
-      );
-
-      // If not exact match, check fuzzy match
-      if (!matchedStaff) {
-        matchedStaff = updatedStaffList.find(
-          (st) =>
-            st.name.toLowerCase().includes(parsed.name.toLowerCase()) ||
-            parsed.name.toLowerCase().includes(st.name.toLowerCase())
-        );
-      }
-
-      const actualRoles = parsed.roles && parsed.roles.length > 0 ? parsed.roles : ["Host / 陪聊 / 迎賓"];
-
-      if (!matchedStaff) {
-        // Create new staff
-        matchedStaff = {
-          id: `staff-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          name: parsed.name,
-          roles: actualRoles,
-          maxShifts: parsed.maxShifts || 2,
-        };
-        updatedStaffList.push(matchedStaff);
-      } else {
-        // Optionally append roles if newly specified and not already existing
-        const uniqueRoles = Array.from(new Set([...matchedStaff.roles, ...actualRoles]));
-        matchedStaff.roles = uniqueRoles;
-        if (parsed.maxShifts) {
-          matchedStaff.maxShifts = parsed.maxShifts;
-        }
-      }
-
-      // Merge availabilities
-      let availIndex = updatedAvailabilities.findIndex((a) => a.staffId === matchedStaff!.id);
-      if (availIndex === -1) {
-        updatedAvailabilities.push({ staffId: matchedStaff.id, preferences: {}, notes: {} });
-        availIndex = updatedAvailabilities.length - 1;
-      }
-
-      parsed.availabilities?.forEach((pa: any) => {
-        // Align slotId
-        const targetSlot = slots.find((s) => s.id === pa.slotId);
-        if (targetSlot) {
-          updatedAvailabilities[availIndex].preferences[targetSlot.id] = pa.status;
-          if (pa.reason) {
-            if (!updatedAvailabilities[availIndex].notes) {
-              updatedAvailabilities[availIndex].notes = {};
-            }
-            updatedAvailabilities[availIndex].notes![targetSlot.id] = pa.reason;
-          }
-        }
-      });
-    });
-
-    onBatchUpdate(updatedAvailabilities, updatedStaffList);
-    setParsedPreview(null);
-    setAiInput("");
-    alert("AI 意願解析已套用！店員名冊與意願矩陣已同步更新。");
   };
 
   // File drag-and-drop handlers
@@ -536,17 +395,15 @@ export default function AvailabilityGrid({
       {/* Introduction Card */}
       <div className="bg-[#FAF9F6] p-5 rounded-2xl border border-[#D8D2C2] text-[#4A3D33]">
         <h3 className="font-serif font-bold text-[#8B7355] text-sm flex items-center gap-1.5 mb-1.5">
-          <Sparkles className="w-5 h-5 text-[#8B7355]" />
+          <Clipboard className="w-5 h-5 text-[#8B7355]" />
           冒險者意願收集 & 大批導入指引
         </h3>
         <p className="text-xs text-[#6D5F52] leading-relaxed font-semibold">
-          班表規定的核心在於收集店員夥伴的本週意願。本助手提供三種高效輸入模式：
+          班表規定的核心在於收集店員夥伴的本週意願。本助手提供兩種高效輸入模式：
           <br />
           1. <strong>表格點擊變更：</strong>直接在下方矩陣的格點上點擊，即可快速循環輪替意願狀態。
           <br />
-          2. <strong>試算表整批複製貼上：</strong>直接複製 Excel 或 Google 試算表範圍 (Ctrl+C)，在下方框中貼上，即可一秒整批對齊！
-          <br />
-          3. <strong>AI 智能暢聊對話判定：</strong>直接複製 Discord/LINE 中大家亂糟糟的報班留言，AI 會自動解讀哪位店員、星期幾可以、做什麼職務及上限，並自動在店員夥伴中新增、更新對應資料！
+          2. <strong>試算表整批複製貼上：</strong>直接複製 Excel 或 Google 試算表範圍 (Ctrl+C)，在下方框中貼上，或拖放檔案下載的範本上傳，即可一秒整批對齊！
         </p>
       </div>
 
@@ -643,7 +500,7 @@ export default function AvailabilityGrid({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-4xl mx-auto">
         {/* Excel & CSV Multi-way Importer Panel */}
         <div id="staff-excel-csv-importer" className="bg-[#FAF9F6] p-5 rounded-2xl border border-[#D8D2C2] shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-[#D8D2C2]/40 pb-2.5">
@@ -812,132 +669,7 @@ export default function AvailabilityGrid({
             </div>
           )}
         </div>
-
-        {/* AI Parse Chat / Message */}
-        <div className="bg-[#FAF9F6] p-5 rounded-2xl border border-[#D8D2C2] shadow-sm space-y-4">
-          <div className="flex justify-between items-center border-b border-[#D8D2C2]/40 pb-2.5">
-            <h4 className="text-xs font-serif font-bold text-[#4A3D33] flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-[#8B7355]" /> AI 報班留言智能解讀
-            </h4>
-          </div>
-
-          <p className="text-3xs text-[#6D5F52] leading-relaxed font-semibold">
-            直接複製群組內亂多條報班紀錄，AI 將解讀名字、職務專長、符合的星期與時段。若有生面孔，會自動在店員夥伴中新增他！
-          </p>
-
-          <textarea
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            placeholder="直接貼上對話，例如：&#10;桑克瑞德：這星期六晚上 Bartender 我OK，週五有事要打本就不排嚕~&#10;雅修特拉：週五六都在！Host 或 Manager 我都隨意排～"
-            rows={5}
-            className="w-full p-3 text-xs rounded-lg bg-white border border-[#D8D2C2] focus:ring-1 focus:ring-[#8B7355] outline-none text-[#4A3D33] placeholder-slate-400"
-          ></textarea>
-
-          {aiError && (
-            <p className="text-3xs text-red-600 flex items-center gap-1 font-bold">
-              <AlertCircle className="w-3.5 h-3.5" /> {aiError}
-            </p>
-          )}
-
-          <button
-            onClick={handleAiParse}
-            disabled={aiLoading || slots.length === 0}
-            className="w-full py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#4A3D33] hover:bg-[#3D322A] transition flex justify-center items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm"
-          >
-            {aiLoading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-[#D4AF37]" /> AI 正在全力精讀中，請稍後...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" /> AI 智能解讀留言套用
-              </>
-            )}
-          </button>
-        </div>
       </div>
-
-      {/* AI Parsed Review Modal/Section */}
-      {parsedPreview && (
-        <div className="bg-[#E7E0D3]/60 p-5 rounded-2xl border border-[#D8D2C2] space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="text-xs font-serif font-bold text-[#4A3D33] flex items-center gap-1.5">
-              <Sparkles className="w-4.5 h-4.5 text-[#8B7355] animate-pulse" /> AI 報班意願解讀分析預覽
-            </h4>
-            <span className="text-2xs text-[#8B7355] font-bold">
-              共解析出 {parsedPreview.length} 位夥伴的排班偏好
-            </span>
-          </div>
-
-          <div className="bg-white rounded-xl max-h-60 overflow-y-auto border border-[#D8D2C2] divide-y divide-[#D8D2C2]/40">
-            {parsedPreview.map((staff: any, idx: number) => {
-              // Deduce standard or new
-              const isNew = !staffList.some((s) => s.name.toLowerCase() === staff.name.toLowerCase());
-              return (
-                <div key={idx} className="p-4 text-xs font-sans">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[#4A3D33]">{staff.name}</span>
-                      {isNew ? (
-                        <span className="bg-[#8B7355]/10 text-[#8B7355] text-[9px] px-1.5 py-0.5 rounded font-bold">
-                          🆕 新夥伴
-                        </span>
-                      ) : (
-                        <span className="bg-[#FAF9F6] border border-[#D8D2C2] text-[#6D5F52] text-[9px] px-1.5 py-0.5 rounded font-bold">
-                          已登記店員
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[#A19882] text-3xs font-bold">週上限: {staff.maxShifts || 2} 班</span>
-                  </div>
-
-                  <div className="space-y-1.5 pl-2 border-l-2 border-[#8B7355]">
-                    <div>
-                      <span className="text-[10px] text-[#A19882] font-semibold mr-2">可任角色:</span>
-                      <span className="font-bold text-[#4A3D33]">
-                        {staff.roles?.join(", ") || "未特別指定角色"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#A19882] font-semibold block mb-1">解析到的意願時段:</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {staff.availabilities?.map((p: any, pIdx: number) => {
-                          const slot = slots.find((s) => s.id === p.slotId);
-                          if (!slot) return null;
-                          return (
-                            <span
-                              key={pIdx}
-                              className="px-2 py-1 rounded text-2xs font-bold border border-[#D8D2C2] bg-[#FAF9F6] text-[#4A3D33] inline-block"
-                            >
-                              <strong>{slot.day}</strong>: {p.status === "available" ? "🟢可排" : p.status === "maybe" ? "🟡備用" : "❌不可"}
-                              {p.reason && <span className="text-3xs text-slate-500 ml-1">({p.reason})</span>}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-end gap-2.5">
-            <button
-              onClick={() => setParsedPreview(null)}
-              className="px-4 py-2 text-xs font-bold rounded-lg bg-white border border-[#D8D2C2]"
-            >
-              取消
-            </button>
-            <button
-              onClick={applyAiParsedResult}
-              className="px-5 py-2 text-xs font-bold rounded-lg text-white bg-[#8B7355] hover:bg-[#705D45] flex items-center gap-1.5 transition cursor-pointer shadow-md"
-            >
-              <Check className="w-4 h-4" /> 確認套用 AI 解讀結果
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

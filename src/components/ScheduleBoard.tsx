@@ -81,6 +81,7 @@ export default function ScheduleBoard({
 
   const [realTime, setRealTime] = useState("");
   const [selectedPosterDay, setSelectedPosterDay] = useState<string>("all");
+  const [posterOrientation, setPosterOrientation] = useState<"vertical" | "horizontal">("vertical");
   
   const weekOffset = selectedWeek === "this_week" ? 0 : selectedWeek === "next_week" ? 1 : selectedWeek === "two_weeks_after" ? 2 : 0;
   
@@ -108,16 +109,16 @@ export default function ScheduleBoard({
     if (!posterRef.current) return;
     setIsGeneratingImage(true);
 
-    const isAll = selectedPosterDay === "all";
-    const targetHeight = isAll ? 1234 : 760;
-    const targetWidth = 420;
+    const el = posterRef.current;
+    const targetWidth = el.offsetWidth || (posterOrientation === "vertical" ? 420 : 840);
+    const targetHeight = el.offsetHeight || 1200;
 
-    toPng(posterRef.current, {
+    toPng(el, {
       cacheBust: true,
       backgroundColor: "#FAF9F6",
       width: targetWidth * 3,
       height: targetHeight * 3,
-      pixelRatio: 1, // 鎖定像素比為 1，使輸出解析度精確維持在 1260 x (3702/2280)
+      pixelRatio: 1, // 鎖定像素比為 1，輸出高解析度 (3x)
       style: {
         width: `${targetWidth}px`,
         height: `${targetHeight}px`,
@@ -127,8 +128,9 @@ export default function ScheduleBoard({
     })
       .then((dataUrl) => {
         const link = document.createElement("a");
-        const suffix = isAll ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
-        link.download = `${shopName}_${suffix}.png`;
+        const suffix = selectedPosterDay === "all" ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
+        const orientSuffix = posterOrientation === "vertical" ? "直式" : "橫式";
+        link.download = `${shopName}_${suffix}_${orientSuffix}.png`;
         link.href = dataUrl;
         link.click();
         setIsGeneratingImage(false);
@@ -554,11 +556,11 @@ export default function ScheduleBoard({
               將下方精美風格的海報圖卡下載存入您的裝置。本圖卡自動去除控制按鈕，非常適合張貼於 Discord、遊戲社群、或店鋪公告！
             </p>
 
-            {/* Day Selector for Day-by-Day (分天下載) Poster Layout */}
-            {uniqueDaysInSlots.length > 1 && (
-              <div className="space-y-2 bg-[#E7E0D3]/30 p-2.5 rounded-xl border border-[#D8D2C2]/40">
+            {/* Day & Layout Orientation Selector for Poster Configuration */}
+            <div className="space-y-3 bg-[#E7E0D3]/30 p-3 rounded-xl border border-[#D8D2C2]/40">
+              <div className="space-y-1">
                 <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
-                  海報匯出規格設定：
+                  第一步：選擇匯出日期範圍
                 </span>
                 <div className="flex flex-wrap gap-1">
                   <button
@@ -581,7 +583,7 @@ export default function ScheduleBoard({
                       onClick={() => {
                         setSelectedPosterDay(d);
                       }}
-                      className={`py-1.5 px-3.5 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
+                      className={`py-1.5 px-2.5 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
                         selectedPosterDay === d
                           ? "bg-[#8B7355] text-white shadow-xs"
                           : "bg-white/60 text-[#6D5F52] hover:bg-white"
@@ -592,7 +594,37 @@ export default function ScheduleBoard({
                   ))}
                 </div>
               </div>
-            )}
+
+              <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
+                <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
+                  第二步：選擇海報版面方向
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPosterOrientation("vertical")}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
+                      posterOrientation === "vertical"
+                        ? "bg-[#8B7355] text-white shadow-xs"
+                        : "bg-white/60 text-[#6D5F52] hover:bg-white"
+                    }`}
+                  >
+                    直式大字排版 (單欄往下延伸)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPosterOrientation("horizontal")}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
+                      posterOrientation === "horizontal"
+                        ? "bg-[#8B7355] text-white shadow-xs"
+                        : "bg-white/60 text-[#6D5F52] hover:bg-white"
+                    }`}
+                  >
+                    橫式並排排版 (雙欄精美並列)
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <button
               onClick={handleExportImage}
@@ -600,17 +632,20 @@ export default function ScheduleBoard({
               className="w-full py-2.5 px-3 text-xs font-bold rounded-lg text-white bg-[#8B7355] hover:bg-[#705D45] transition flex justify-center items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
             >
               <Download className="w-4 h-4 text-white" />
-              {isGeneratingImage ? "海報圖片產生中..." : selectedPosterDay === "all" ? "立刻下載全週排班海報 (PNG) 📸" : `立刻下載 [${selectedPosterDay}] 單日海報 (PNG) 📸`}
+              {isGeneratingImage 
+                ? "海報圖片產生中..." 
+                : `${posterOrientation === "vertical" ? "直式" : "橫式"}海報下載 [${selectedPosterDay === "all" ? "完整班表" : selectedPosterDay}] (PNG) 📸`}
             </button>
 
             {/* Poster Element to Capture */}
             <div className="overflow-hidden rounded-xl border border-[#D8D2C2] bg-white shadow-inner flex justify-center max-h-[720px] overflow-y-auto w-full">
               <div
                 ref={posterRef}
-                className="pt-6 px-6 pb-14 bg-[#FAF9F6] text-[#4A3D33] font-sans relative flex flex-col justify-between shrink-0"
+                className="pt-6 px-6 pb-12 bg-[#FAF9F6] text-[#4A3D33] font-sans relative flex flex-col justify-between shrink-0"
                 style={{
-                  width: "420px",
-                  height: selectedPosterDay === "all" ? "1234px" : "760px",
+                  width: posterOrientation === "vertical" ? "420px" : "840px",
+                  height: "auto",
+                  minHeight: "450px",
                 }}
               >
                 {/* Decorative borders */}
@@ -618,7 +653,7 @@ export default function ScheduleBoard({
                 <div className="absolute top-3.5 left-3.5 right-3.5 bottom-3.5 border border-[#8B7355]/10 pointer-events-none rounded-lg"></div>
                 
                 {/* Content top section wrapper */}
-                <div className="space-y-6 z-10 relative flex-grow flex flex-col justify-start">
+                <div className="space-y-6 z-10 relative flex-grow flex flex-col justify-start pb-4">
                   {/* Real Time Overlay on capturing */}
                   <div className="flex justify-between items-center text-[9px] font-mono text-[#A19882] select-none border-b border-[#D8D2C2]/30 pb-1">
                     <span>REAL TIME / 現實時間</span>
@@ -650,60 +685,78 @@ export default function ScheduleBoard({
                     <div className="w-20 h-0.5 bg-[#8B7355] mx-auto mt-2"></div>
                   </div>
 
-                  {/* Slots details */}
-                  <div className="space-y-4 pt-1 text-left">
+                  {/* Slots details (conditionally responsive Grid layout for Horizontal) */}
+                  <div className={posterOrientation === "vertical" ? "space-y-4 pt-1 text-left" : "grid grid-cols-2 gap-4 pt-1 text-left"}>
                     {displayedSlots.length === 0 ? (
-                      <p className="text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
+                      <p className="col-span-2 text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
                     ) : (
                       displayedSlots.map((slot) => {
-                        // Get allocations in this slot
-                        const slotShifts = schedule.filter((s) => s.slotId === slot.id);
+                        // Gather layout requirements list
+                        const flatReqList = slot.rolesRequired.flatMap((req) => {
+                          if (req.isUnlimited) {
+                            const matches = schedule.filter((m) => m.slotId === slot.id && m.roleName === req.roleName);
+                            if (matches.length === 0) return [];
+                            return matches.map((m, idx) => ({ roleName: req.roleName, index: m.roleIndex ?? idx }));
+                          } else {
+                            const list = [];
+                            for (let i = 0; i < req.count; i++) {
+                              list.push({ roleName: req.roleName, index: i });
+                            }
+                            return list;
+                          }
+                        });
+
+                        // Consolidate identical roles so duplicate items don't crop up (職務不重複，並合成人名)
+                        const roleGroups: { roleName: string; staffNames: string[] }[] = [];
+
+                        flatReqList.forEach(({ roleName, index }) => {
+                          const assignedId = getAssignedStaffId(slot.id, roleName, index);
+                          const currentStaff = staffList.find((st) => st.id === assignedId);
+                          const staffName = currentStaff ? currentStaff.name : "🕒 待定";
+
+                          const existingGroup = roleGroups.find((g) => g.roleName === roleName);
+                          if (existingGroup) {
+                            existingGroup.staffNames.push(staffName);
+                          } else {
+                            roleGroups.push({ roleName, staffNames: [staffName] });
+                          }
+                        });
                         
                         return (
-                          <div key={slot.id} className="bg-white border border-[#D8D2C2] rounded-xl p-4 space-y-3.5 shadow-2xs">
-                            {/* Slot banner */}
-                            <div className="flex justify-between items-center border-b border-[#D8D2C2]/50 pb-2 select-none">
-                              <span className="text-xs font-serif font-bold text-white bg-[#4A3D33] px-2.5 py-0.5 rounded">
-                                {slot.day} ({getSlotDateLabel(slot.day, weekOffset)})
-                              </span>
-                              <span className="text-xs font-serif font-extrabold text-[#8B7355]">
-                                {slot.time}
-                              </span>
-                            </div>
+                          <div key={slot.id} className="bg-white border border-[#D8D2C2] rounded-xl p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                            <div>
+                              {/* Slot banner */}
+                              <div className="flex justify-between items-center border-b border-[#D8D2C2]/50 pb-2 mb-2.5 select-none">
+                                <span className="text-xs font-serif font-bold text-white bg-[#4A3D33] px-2.5 py-0.5 rounded">
+                                  {slot.day} ({getSlotDateLabel(slot.day, weekOffset)})
+                                </span>
+                                <span className="text-xs font-serif font-extrabold text-[#8B7355]">
+                                  {slot.time}
+                                </span>
+                              </div>
 
-                            {/* Staff and roles list */}
-                            <div className="space-y-1.5">
-                              {slot.rolesRequired.length === 0 ? (
-                                <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
-                              ) : (
-                                slot.rolesRequired.flatMap((req) => {
-                                  if (req.isUnlimited) {
-                                    const matches = schedule.filter((m) => m.slotId === slot.id && m.roleName === req.roleName);
-                                    if (matches.length === 0) return [];
-                                    return matches.map((m, idx) => ({ roleName: req.roleName, index: m.roleIndex ?? idx }));
-                                  } else {
-                                    const list = [];
-                                    for (let i = 0; i < req.count; i++) {
-                                      list.push({ roleName: req.roleName, index: i });
-                                    }
-                                    return list;
-                                  }
-                                }).map(({ roleName, index }, rIdx) => {
-                                  const assignedId = getAssignedStaffId(slot.id, roleName, index);
-                                  const currentStaff = staffList.find((st) => st.id === assignedId);
-                                  
-                                  return (
-                                    <div key={rIdx} className="flex justify-between items-center text-base py-1 border-b border-[#FAF9F6]/50 last:border-0 select-none">
-                                      <span className="text-[#6D5F52] font-serif font-medium">
-                                        • {roleName.split(" / ")[0]}
-                                      </span>
-                                      <span className={`px-2 py-0.5 rounded font-serif font-extrabold text-base ${currentStaff ? "text-[#4A3D33]" : "text-amber-700 bg-amber-50"}`}>
-                                        {currentStaff ? currentStaff.name : "🕒 待定 / 代班中"}
-                                      </span>
-                                    </div>
-                                  );
-                                })
-                              )}
+                              {/* Staff and consolidated roles list */}
+                              <div className="space-y-1.5">
+                                {roleGroups.length === 0 ? (
+                                  <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
+                                ) : (
+                                  roleGroups.map(({ roleName, staffNames }, gIdx) => {
+                                    const displayName = staffNames.join("、");
+                                    const hasAnyStaff = staffNames.some(name => name !== "🕒 待定");
+
+                                    return (
+                                      <div key={gIdx} className="flex justify-between items-center text-sm py-1 border-b border-[#FAF9F6]/50 last:border-0 select-none gap-2">
+                                        <span className="text-[#6D5F52] font-serif font-medium shrink-0">
+                                          • {roleName.split(" / ")[0]}
+                                        </span>
+                                        <span className={`text-right rounded font-serif font-extrabold text-sm break-all ${hasAnyStaff ? "text-[#4A3D33]" : "text-amber-700 bg-amber-50 px-1 py-0.5"}`}>
+                                          {displayName}
+                                        </span>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -712,9 +765,9 @@ export default function ScheduleBoard({
                   </div>
                 </div>
 
-                {/* Footer seal (elevated by higher pb on parent and pb-3 margin-bottom offsets to stay completely clear of borders) */}
-                <div className="text-center pt-3 pb-3 border-t border-[#D8D2C2]/40 z-10 relative select-none space-y-1.5 mb-1 shrink-0">
-                  <p className="text-base text-[#6D5F52] font-serif font-black leading-none tracking-widest">
+                {/* Footer seal */}
+                <div className="text-center pt-3 pb-2 border-t border-[#D8D2C2]/40 z-10 relative select-none space-y-1 mt-auto">
+                  <p className="text-sm text-[#6D5F52] font-serif font-black leading-none tracking-widest">
                     敬邀光臨入座
                   </p>
                   <p className="text-[9px] text-[#C0B9A8] font-sans leading-none tracking-tight block">
