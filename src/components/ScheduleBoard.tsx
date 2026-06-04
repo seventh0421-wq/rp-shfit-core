@@ -81,7 +81,7 @@ export default function ScheduleBoard({
 
   const [realTime, setRealTime] = useState("");
   const [selectedPosterDay, setSelectedPosterDay] = useState<string>("all");
-  const [posterOrientation, setPosterOrientation] = useState<"vertical" | "horizontal">("vertical");
+  const [posterOrientation, setPosterOrientation] = useState<"vertical" | "horizontal">("horizontal");
   
   // Customizable footer text & poster theme selection state
   const [posterFooterText, setPosterFooterText] = useState<string>(() => {
@@ -241,7 +241,7 @@ export default function ScheduleBoard({
         .then((dataUrl) => {
           const link = document.createElement("a");
           const suffix = selectedPosterDay === "all" ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
-          const orientSuffix = posterOrientation === "vertical" ? "直式" : "橫式";
+          const orientSuffix = "橫式";
           link.download = `${shopName}_${suffix}_${orientSuffix}.png`;
           link.href = dataUrl;
           link.click();
@@ -720,37 +720,7 @@ export default function ScheduleBoard({
 
               <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
                 <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
-                  第二步：選擇海報版面方向
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPosterOrientation("vertical")}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
-                      posterOrientation === "vertical"
-                        ? "bg-[#8B7355] text-white shadow-xs"
-                        : "bg-white/60 text-[#6D5F52] hover:bg-white"
-                    }`}
-                  >
-                    直式大字排版 (單欄往下延伸)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPosterOrientation("horizontal")}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer ${
-                      posterOrientation === "horizontal"
-                        ? "bg-[#8B7355] text-white shadow-xs"
-                        : "bg-white/60 text-[#6D5F52] hover:bg-white"
-                    }`}
-                  >
-                    橫式並排排版 (雙欄精美並列)
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
-                <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
-                  第三步：選擇海報主題色系
+                  第二步：選擇海報主題色系
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   {POSTER_THEMES.map((theme) => (
@@ -773,7 +743,7 @@ export default function ScheduleBoard({
 
               <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
                 <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
-                  第四步：自訂海報底部文案 (宣傳標語)
+                  第三步：自訂海報底部文案 (宣傳標語)
                 </span>
                 <input
                   type="text"
@@ -793,7 +763,7 @@ export default function ScheduleBoard({
               <Download className="w-4 h-4 text-white" />
               {isGeneratingImage 
                 ? "海報圖片產生中..." 
-                : `${posterOrientation === "vertical" ? "直式" : "橫式"}海報下載 [${selectedPosterDay === "all" ? "完整班表" : selectedPosterDay}] (PNG) 📸`}
+                : `精美海報外銷下載 [${selectedPosterDay === "all" ? "完整班表" : selectedPosterDay}] (PNG) 📸`}
             </button>
 
             {/* Poster Element to Capture */}
@@ -802,7 +772,7 @@ export default function ScheduleBoard({
                 ref={posterRef}
                 className="pt-6 px-6 pb-12 font-sans relative flex flex-col justify-between shrink-0"
                 style={{
-                  width: posterOrientation === "vertical" ? "420px" : "840px",
+                  width: "840px",
                   height: "auto",
                   minHeight: "450px",
                   backgroundColor: currentTheme.bg,
@@ -847,7 +817,7 @@ export default function ScheduleBoard({
                   </div>
 
                   {/* Slots details (conditionally responsive Grid layout for Horizontal) */}
-                  <div className={posterOrientation === "vertical" ? "space-y-4 pt-1 text-left" : "grid grid-cols-2 gap-4 pt-1 text-left"}>
+                  <div className="grid grid-cols-2 gap-4 pt-1 text-left">
                     {displayedSlots.length === 0 ? (
                       <p className="col-span-2 text-center text-xs py-4 italic font-serif" style={{ color: currentTheme.textMuted }}>尚未設定任何營業時段</p>
                     ) : (
