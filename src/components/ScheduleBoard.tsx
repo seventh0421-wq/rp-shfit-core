@@ -83,6 +83,119 @@ export default function ScheduleBoard({
   const [selectedPosterDay, setSelectedPosterDay] = useState<string>("all");
   const [posterOrientation, setPosterOrientation] = useState<"vertical" | "horizontal">("vertical");
   
+  // Customizable footer text & poster theme selection state
+  const [posterFooterText, setPosterFooterText] = useState<string>(() => {
+    return localStorage.getItem("ffxiv_roster_poster_footer") || "敬邀光臨入座";
+  });
+  
+  const [posterThemeId, setPosterThemeId] = useState<string>(() => {
+    return localStorage.getItem("ffxiv_roster_poster_theme") || "parchment";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ffxiv_roster_poster_footer", posterFooterText);
+  }, [posterFooterText]);
+
+  useEffect(() => {
+    localStorage.setItem("ffxiv_roster_poster_theme", posterThemeId);
+  }, [posterThemeId]);
+
+  // Color options definitions
+  const POSTER_THEMES = [
+    {
+      id: "parchment",
+      name: "古樸紙質 (原創經典)",
+      bg: "#FAF9F6",
+      border: "rgba(139, 115, 85, 0.4)",
+      borderMuted: "rgba(139, 115, 85, 0.15)",
+      titleBg: "#8B7355",
+      textPrimary: "#4A3D33",
+      textMuted: "#6D5F52",
+      slotBg: "#4A3D33",
+      slotText: "#FFFFFF",
+      timeText: "#8B7355",
+      cardBg: "#FFFFFF",
+      cardBorder: "#D8D2C2",
+      roleLabel: "#6D5F52",
+      staffText: "#4A3D33",
+      footerBorder: "rgba(216, 210, 194, 0.4)",
+    },
+    {
+      id: "midnight",
+      name: "靜謐星空 (極光深藍)",
+      bg: "#0B132B",
+      border: "rgba(91, 192, 190, 0.45)",
+      borderMuted: "rgba(91, 192, 190, 0.15)",
+      titleBg: "#3A506B",
+      textPrimary: "#F4FAFF",
+      textMuted: "#87B3C7",
+      slotBg: "#1C2541",
+      slotText: "#5BC0BE",
+      timeText: "#5BC0BE",
+      cardBg: "#1C2541",
+      cardBorder: "#3A506B",
+      roleLabel: "#87B3C7",
+      staffText: "#F4FAFF",
+      footerBorder: "rgba(58, 80, 107, 0.4)",
+    },
+    {
+      id: "sakura",
+      name: "悠櫻花見 (優雅粉櫻)",
+      bg: "#FFF0F2",
+      border: "rgba(219, 112, 147, 0.45)",
+      borderMuted: "rgba(219, 112, 147, 0.15)",
+      titleBg: "#C71585",
+      textPrimary: "#5C133A",
+      textMuted: "#9C5D7D",
+      slotBg: "#AA336A",
+      slotText: "#FFFFFF",
+      timeText: "#C71585",
+      cardBg: "#FFFFFF",
+      cardBorder: "#F3C1D3",
+      roleLabel: "#9C5D7D",
+      staffText: "#5C133A",
+      footerBorder: "rgba(243, 193, 211, 0.4)",
+    },
+    {
+      id: "forest",
+      name: "翡翠森境 (溫潤深綠)",
+      bg: "#F2F7F2",
+      border: "rgba(46, 117, 89, 0.45)",
+      borderMuted: "rgba(46, 117, 89, 0.15)",
+      titleBg: "#2E7559",
+      textPrimary: "#1B3F31",
+      textMuted: "#46705D",
+      slotBg: "#1B3F31",
+      slotText: "#96DEB4",
+      timeText: "#2E7559",
+      cardBg: "#FFFFFF",
+      cardBorder: "#C0DBD0",
+      roleLabel: "#46705D",
+      staffText: "#1B3F31",
+      footerBorder: "rgba(192, 219, 208, 0.4)",
+    },
+    {
+      id: "gothic",
+      name: "黑檀古典 (華麗紅黑)",
+      bg: "#120E0E",
+      border: "rgba(186, 12, 47, 0.5)",
+      borderMuted: "rgba(186, 12, 47, 0.2)",
+      titleBg: "#221A1A",
+      textPrimary: "#ECE2E2",
+      textMuted: "#B89F9F",
+      slotBg: "#BA0C2F",
+      slotText: "#FFFFFF",
+      timeText: "#BA0C2F",
+      cardBg: "#221A1A",
+      cardBorder: "#4A1521",
+      roleLabel: "#B89F9F",
+      staffText: "#ECE2E2",
+      footerBorder: "rgba(186, 12, 47, 0.3)",
+    }
+  ];
+
+  const currentTheme = POSTER_THEMES.find((t) => t.id === posterThemeId) || POSTER_THEMES[0];
+  
   const weekOffset = selectedWeek === "this_week" ? 0 : selectedWeek === "next_week" ? 1 : selectedWeek === "two_weeks_after" ? 2 : 0;
   
   const posterRef = useRef<HTMLDivElement>(null);
@@ -115,7 +228,7 @@ export default function ScheduleBoard({
 
     toPng(el, {
       cacheBust: true,
-      backgroundColor: "#FAF9F6",
+      backgroundColor: currentTheme.bg,
       width: targetWidth * 3,
       height: targetHeight * 3,
       pixelRatio: 1, // 鎖定像素比為 1，輸出高解析度 (3x)
@@ -624,6 +737,42 @@ export default function ScheduleBoard({
                   </button>
                 </div>
               </div>
+
+              <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
+                <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
+                  第三步：選擇海報主題色系
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {POSTER_THEMES.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => setPosterThemeId(theme.id)}
+                      className={`py-1.5 px-2 rounded-lg text-3xs font-extrabold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                        posterThemeId === theme.id
+                          ? "bg-[#8B7355] text-white border-transparent shadow-xs"
+                          : "bg-white text-[#6D5F52] hover:bg-white/90 border-[#D8D2C2]/40"
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10" style={{ backgroundColor: theme.bg }}></span>
+                      <span className="truncate">{theme.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1 border-t border-[#D8D2C2]/30 pt-2">
+                <span className="block text-3xs font-black text-[#8B7355] uppercase tracking-widest">
+                  第四步：自訂海報底部文案 (宣傳標語)
+                </span>
+                <input
+                  type="text"
+                  value={posterFooterText}
+                  onChange={(e) => setPosterFooterText(e.target.value)}
+                  placeholder="例如：敬邀光臨入座、店鋪試營運中！"
+                  className="w-full px-2.5 py-1.5 text-2xs rounded-lg border border-[#D8D2C2] bg-white text-[#4A3D33] font-bold focus:ring-1 focus:ring-[#8B7355] outline-none"
+                />
+              </div>
             </div>
 
             <button
@@ -641,54 +790,56 @@ export default function ScheduleBoard({
             <div className="overflow-hidden rounded-xl border border-[#D8D2C2] bg-white shadow-inner flex justify-center max-h-[720px] overflow-y-auto w-full">
               <div
                 ref={posterRef}
-                className="pt-6 px-6 pb-12 bg-[#FAF9F6] text-[#4A3D33] font-sans relative flex flex-col justify-between shrink-0"
+                className="pt-6 px-6 pb-12 font-sans relative flex flex-col justify-between shrink-0"
                 style={{
                   width: posterOrientation === "vertical" ? "420px" : "840px",
                   height: "auto",
                   minHeight: "450px",
+                  backgroundColor: currentTheme.bg,
+                  color: currentTheme.textPrimary,
                 }}
               >
                 {/* Decorative borders */}
-                <div className="absolute top-2.5 left-2.5 right-2.5 bottom-2.5 border border-[#8B7355]/30 pointer-events-none rounded-lg"></div>
-                <div className="absolute top-3.5 left-3.5 right-3.5 bottom-3.5 border border-[#8B7355]/10 pointer-events-none rounded-lg"></div>
+                <div className="absolute top-2.5 left-2.5 right-2.5 bottom-2.5 border pointer-events-none rounded-lg" style={{ borderColor: currentTheme.border }}></div>
+                <div className="absolute top-3.5 left-3.5 right-3.5 bottom-3.5 border pointer-events-none rounded-lg" style={{ borderColor: currentTheme.borderMuted }}></div>
                 
                 {/* Content top section wrapper */}
                 <div className="space-y-6 z-10 relative flex-grow flex flex-col justify-start pb-4">
                   {/* Real Time Overlay on capturing */}
-                  <div className="flex justify-between items-center text-[9px] font-mono text-[#A19882] select-none border-b border-[#D8D2C2]/30 pb-1">
+                  <div className="flex justify-between items-center text-[9px] font-mono select-none border-b pb-1" style={{ borderColor: currentTheme.borderMuted, color: currentTheme.textMuted }}>
                     <span>REAL TIME / 現實時間</span>
-                    <span className="font-bold text-[#8B7355]">{realTime || "讀取中..."}</span>
+                    <span className="font-bold" style={{ color: currentTheme.timeText }}>{realTime || "讀取中..."}</span>
                   </div>
 
                   {/* Header */}
                   <div className="text-center space-y-1 select-none">
-                    <div className="inline-block bg-[#8B7355] text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-1 shadow-2xs">
+                    <div className="inline-block text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest mb-1 shadow-2xs" style={{ backgroundColor: currentTheme.titleBg }}>
                       ✦ FFXIV RP ROSTER ✦
                     </div>
-                    <h2 className="text-2xl font-serif font-black tracking-wide text-[#4A3D33] break-words uppercase">
+                    <h2 className="text-2xl font-serif font-black tracking-wide break-words uppercase" style={{ color: currentTheme.textPrimary }}>
                       {shopName}
                     </h2>
-                    <p className="text-xs text-[#8B7355] font-serif font-bold italic">
+                    <p className="text-xs font-serif font-bold italic" style={{ color: currentTheme.timeText }}>
                       {selectedPosterDay === "all" ? (
                         selectedWeek === "this_week" ? "~ 本週營業班表 ~" : selectedWeek === "next_week" ? "~ 下週營運預排 ~" : "~ 下下週營運預排 ~"
                       ) : (
                         `~ ${selectedPosterDay} 營業班表 ~`
                       )}
                     </p>
-                    <p className="text-[10px] text-[#A19882] font-mono font-bold tracking-tight">
+                    <p className="text-[10px] font-mono font-bold tracking-tight" style={{ color: currentTheme.textMuted }}>
                       {selectedPosterDay === "all" ? (
                         `(${getWeekLabelText(weekOffset)})`
                       ) : (
                         `(${getSlotDateLabel(selectedPosterDay, weekOffset)})`
                       )}
                     </p>
-                    <div className="w-20 h-0.5 bg-[#8B7355] mx-auto mt-2"></div>
+                    <div className="w-20 h-0.5 mx-auto mt-2" style={{ backgroundColor: currentTheme.titleBg }}></div>
                   </div>
 
                   {/* Slots details (conditionally responsive Grid layout for Horizontal) */}
                   <div className={posterOrientation === "vertical" ? "space-y-4 pt-1 text-left" : "grid grid-cols-2 gap-4 pt-1 text-left"}>
                     {displayedSlots.length === 0 ? (
-                      <p className="col-span-2 text-center text-xs text-[#A19882] py-4 italic font-serif">尚未設定任何營業時段</p>
+                      <p className="col-span-2 text-center text-xs py-4 italic font-serif" style={{ color: currentTheme.textMuted }}>尚未設定任何營業時段</p>
                     ) : (
                       displayedSlots.map((slot) => {
                         // Gather layout requirements list
@@ -723,14 +874,14 @@ export default function ScheduleBoard({
                         });
                         
                         return (
-                          <div key={slot.id} className="bg-white border border-[#D8D2C2] rounded-xl p-4 space-y-3 shadow-2xs flex flex-col justify-between">
+                          <div key={slot.id} className="border rounded-xl p-4 space-y-3 shadow-2xs flex flex-col justify-between" style={{ backgroundColor: currentTheme.cardBg, borderColor: currentTheme.cardBorder }}>
                             <div>
                               {/* Slot banner */}
-                              <div className="flex justify-between items-center border-b border-[#D8D2C2]/50 pb-2 mb-2.5 select-none">
-                                <span className="text-xs font-serif font-bold text-white bg-[#4A3D33] px-2.5 py-0.5 rounded">
+                              <div className="flex justify-between items-center border-b pb-2 mb-2.5 select-none" style={{ borderColor: currentTheme.borderMuted }}>
+                                <span className="text-xs font-serif font-bold px-2.5 py-0.5 rounded" style={{ backgroundColor: currentTheme.slotBg, color: currentTheme.slotText }}>
                                   {slot.day} ({getSlotDateLabel(slot.day, weekOffset)})
                                 </span>
-                                <span className="text-xs font-serif font-extrabold text-[#8B7355]">
+                                <span className="text-xs font-serif font-extrabold" style={{ color: currentTheme.timeText }}>
                                   {slot.time}
                                 </span>
                               </div>
@@ -738,18 +889,18 @@ export default function ScheduleBoard({
                               {/* Staff and consolidated roles list */}
                               <div className="space-y-1.5">
                                 {roleGroups.length === 0 ? (
-                                  <p className="text-xs text-[#A19882] italic font-serif">無特定編制需求</p>
+                                  <p className="text-xs italic font-serif" style={{ color: currentTheme.textMuted }}>無特定編制需求</p>
                                 ) : (
                                   roleGroups.map(({ roleName, staffNames }, gIdx) => {
                                     const displayName = staffNames.join("、");
                                     const hasAnyStaff = staffNames.some(name => name !== "🕒 待定");
 
                                     return (
-                                      <div key={gIdx} className="flex justify-between items-center text-sm py-1 border-b border-[#FAF9F6]/50 last:border-0 select-none gap-2">
-                                        <span className="text-[#6D5F52] font-serif font-medium shrink-0">
+                                      <div key={gIdx} className="flex justify-between items-center text-sm py-1 border-b last:border-0 select-none gap-2" style={{ borderColor: currentTheme.borderMuted }}>
+                                        <span className="font-serif font-medium shrink-0" style={{ color: currentTheme.roleLabel }}>
                                           • {roleName.split(" / ")[0]}
                                         </span>
-                                        <span className={`text-right rounded font-serif font-extrabold text-sm break-all ${hasAnyStaff ? "text-[#4A3D33]" : "text-amber-700 bg-amber-50 px-1 py-0.5"}`}>
+                                        <span className={`text-right rounded font-serif font-extrabold text-sm break-all ${hasAnyStaff ? "" : "text-amber-700 bg-amber-50 px-1 py-0.5"}`} style={{ color: hasAnyStaff ? currentTheme.staffText : undefined }}>
                                           {displayName}
                                         </span>
                                       </div>
@@ -766,11 +917,11 @@ export default function ScheduleBoard({
                 </div>
 
                 {/* Footer seal */}
-                <div className="text-center pt-3 pb-2 border-t border-[#D8D2C2]/40 z-10 relative select-none space-y-1 mt-auto">
-                  <p className="text-sm text-[#6D5F52] font-serif font-black leading-none tracking-widest">
-                    敬邀光臨入座
+                <div className="text-center pt-3 pb-2 border-t z-10 relative select-none space-y-1 mt-auto" style={{ borderColor: currentTheme.footerBorder }}>
+                  <p className="text-sm font-serif font-black leading-none tracking-widest" style={{ color: currentTheme.textMuted }}>
+                    {posterFooterText || "敬邀光臨入座"}
                   </p>
-                  <p className="text-[9px] text-[#C0B9A8] font-sans leading-none tracking-tight block">
+                  <p className="text-[9px] font-sans leading-none tracking-tight block" style={{ color: currentTheme.textMuted, opacity: 0.7 }}>
                     FINAL FANTASY XIV © SQUARE ENIX CO., LTD. All Rights Reserved.
                   </p>
                 </div>

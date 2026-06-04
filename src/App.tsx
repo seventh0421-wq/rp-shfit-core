@@ -41,26 +41,11 @@ function getWeekRangeLabel(weekId: string): string {
 }
 
 export default function App() {
-  // Theme State
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return (
-        localStorage.getItem("theme") === "dark" ||
-        (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      );
-    }
-    return false;
-  });
-
+  // Remove dark mode leftovers and force light mode
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDarkMode]);
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("theme", "light");
+  }, []);
 
   // Main state with localStorage persistence
   const [currentRealTime, setCurrentRealTime] = useState("");
@@ -463,13 +448,6 @@ export default function App() {
               title="清除所有本地資料以自建店家"
             >
               全新起步
-            </button>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-xl text-[#A19882] hover:text-[#4A3D33] hover:bg-[#FAF9F6] transition-colors"
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? <Sun className="w-4 h-4 text-[#D4AF37]" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </div>
