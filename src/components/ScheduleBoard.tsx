@@ -223,36 +223,46 @@ export default function ScheduleBoard({
     setIsGeneratingImage(true);
 
     const el = posterRef.current;
-    const targetWidth = el.offsetWidth || (posterOrientation === "vertical" ? 420 : 840);
-    const targetHeight = el.offsetHeight || 1200;
+    
+    // Find scrollable parent container and temporarily reset its scrollTop to 0 to prevent cropping
+    const scrollContainer = el.parentElement;
+    const originalScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
+    }
 
-    toPng(el, {
-      cacheBust: true,
-      backgroundColor: currentTheme.bg,
-      width: targetWidth * 3,
-      height: targetHeight * 3,
-      pixelRatio: 1, // 鎖定像素比為 1，輸出高解析度 (3x)
-      style: {
-        width: `${targetWidth}px`,
-        height: `${targetHeight}px`,
-        transform: "scale(3)",
-        transformOrigin: "top left",
-      },
-    })
-      .then((dataUrl) => {
-        const link = document.createElement("a");
-        const suffix = selectedPosterDay === "all" ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
-        const orientSuffix = posterOrientation === "vertical" ? "直式" : "橫式";
-        link.download = `${shopName}_${suffix}_${orientSuffix}.png`;
-        link.href = dataUrl;
-        link.click();
-        setIsGeneratingImage(false);
+    // Give a brief delay for the container scroll position to render, then capture
+    setTimeout(() => {
+      toPng(el, {
+        cacheBust: true,
+        backgroundColor: currentTheme.bg,
+        pixelRatio: 3, // Use high-quality 3x native resolution scaling without buggy transform style hacks
       })
-      .catch((err) => {
-        console.error("Oops, something went wrong during image export!", err);
-        alert("海報圖片下載失敗，請重試！");
-        setIsGeneratingImage(false);
-      });
+        .then((dataUrl) => {
+          const link = document.createElement("a");
+          const suffix = selectedPosterDay === "all" ? "全週大字海報" : `${selectedPosterDay}_單日海報`;
+          const orientSuffix = posterOrientation === "vertical" ? "直式" : "橫式";
+          link.download = `${shopName}_${suffix}_${orientSuffix}.png`;
+          link.href = dataUrl;
+          link.click();
+          
+          // Restore original scroll position
+          if (scrollContainer) {
+            scrollContainer.scrollTop = originalScrollTop;
+          }
+          setIsGeneratingImage(false);
+        })
+        .catch((err) => {
+          console.error("Oops, something went wrong during image export!", err);
+          alert("海報圖片下載失敗，請重試！");
+          
+          // Restore original scroll position
+          if (scrollContainer) {
+            scrollContainer.scrollTop = originalScrollTop;
+          }
+          setIsGeneratingImage(false);
+        });
+    }, 100);
   };
 
   // Run Solver
